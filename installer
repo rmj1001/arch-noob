@@ -40,7 +40,7 @@ timedatectl set-ntp true
 read -p "Enter disk: " DISK
 
 # Size in Gigabytes
-DISK_SIZE=$(lsblk $DISK -o SIZE | tr -d "\n" | sed -e 's/SIZE//' -e 's/G//' -e 's|\..*||' -e 's| *||g')
+DISK_SIZE=$(lsblk $DISK -o SIZE | grep G | tr -d "\n" | sed -e 's/SIZE//' -e 's/G//' -e 's|\..*||' -e 's| *||g')
 ROOT_SIZE=$(( $DISK_SIZE / 2  ))
 
 # UEFI/BIOS installations
