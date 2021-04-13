@@ -40,7 +40,7 @@ timedatectl set-ntp true
 read -p "Enter disk: " DISK
 
 # Size in Gigabytes
-DISK_SIZE=$(lsblk $DISK -o SIZE | grep G | tr -d "\n" | sed -e 's/SIZE//' -e 's/G//' -e 's|\..*||' -e 's| *||g')
+DISK_SIZE=$(lsblk $DISK -o SIZE | grep G | tr -d "\n" | sed -e 's|SIZE||' -e 's|G||' -e 's|\..*||' -e 's| *||g')
 ROOT_SIZE=$(( $DISK_SIZE / 2  ))
 
 # UEFI/BIOS installations
@@ -112,7 +112,7 @@ CHROOT ln -sf /usr/share/zoneinfo/America/New_York /etc/lkocaltime
 CHROOT hwclock --systohc
 
 # Generate locale
-CHROOT sed 's|#en_US.UTF-8 UTF-8|en_US.UTF-8 UTF-8|' /etc/locale.gen
+CHROOT sed -E 's|#en_US\.UTF-8\sUTF-8|en_US\.UTF-8\sUTF-8|' /etc/locale.gen
 CHROOT locale-gen
 
 # Networking
