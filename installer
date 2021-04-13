@@ -7,7 +7,7 @@ PRINT()
 
 CHROOT()
 {
-	arch-chroot /mnt $@
+	chroot /mnt /bin/bash -c "$@"
 }
 
 PAUSE ()
@@ -120,45 +120,45 @@ genfstab -U /mnt >> /mnt/etc/fstab
 PAUSE
 
 # Set local time & sync hardware clock
-CHROOT ln -sf /usr/share/zoneinfo/America/New_York /etc/lkocaltime
-CHROOT hwclock --systohc
+CHROOT "ln -sf /usr/share/zoneinfo/America/New_York /etc/lkocaltime"
+CHROOT "hwclock --systohc"
 
 # Generate locale
-CHROOT sed -E 's|#en_US\.UTF-8\sUTF-8|en_US\.UTF-8\sUTF-8|' /etc/locale.gen
-CHROOT locale-gen
+CHROOT "sed -iE 's|#en_US\.UTF-8\sUTF-8|en_US\.UTF-8\sUTF-8|' /etc/locale.gen"
+CHROOT "locale-gen"
 
 # Networking
 read -p "Hostname: " HOSTNAME
 
-CHROOT echo "$HOSTNAME" > /etc/hostname
-CHROOT echo "127.0.0.1\tlocalhost" >> /etc/hosts
-CHROOT echo "::1\t\tlocalhost" >> /etc/hosts
-CHROOT echo "127.0.1.1\t$HOSTNAME.localdomain $HOSTNAME" >> /etc/hosts
+CHROOT "echo '$HOSTNAME' > /etc/hostname"
+CHROOT "echo '127.0.0.1\tlocalhost' >> /etc/hosts"
+CHROOT "echo '::1\t\tlocalhost' >> /etc/hosts"
+CHROOT "echo '127.0.1.1\t${HOSTNAME}.localhomain ${HOSTNAME}' >> /etc/hosts"
 
-CHROOT systemctl enable dhcpcd
+CHROOT "systemctl enable dhcpcd"
 
 PAUSE
 
 # Generate initramfs
-CHROOT mkinitcpio -P
+CHROOT "mkinitcpio -P"
 
 # Set root pasword
-CHROOT passwd
+CHROOT "passwd"
 
 # UEFI/BIOS GRUB installation
 if [[ -d /sys/firmware/efi ]]; then
 
 	# Systemd-boot UEFI
-	CHROOT bootctl --esp-path=/efi --boot-path=/boot install
+	CHROOT "bootctl --esp-path=/efi --boot-path=/boot install"
 	cp $scriptdir/systemd-loaders/* /mnt/efi/loader/entries
 
 else
 
 	# GRUB BIOS
-	CHROOT grub-install --target=i386-pc ${DISK}
+	CHROOT "grub-install --target=i386-pc ${DISK}"
 
 	# Generate grub config file
-	CHROOT grub-mkconfig -o /boot/grub/grub.cfg
+	CHROOT "grub-mkconfig -o /boot/grub/grub.cfg"
 
 fi
 
