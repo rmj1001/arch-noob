@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+PRINT()
+{
+	printf "%b\n" "$@"
+}
+
+CHROOT()
+{
+	arch-chroot /mnt eval "$@"
+}
+
+scriptdir="$(dirname $(realpath $0))"
+
+# Networking
+if [[ ! $(ping -c 1 archlinux.org) ]]; then
+
+	while [[ ! $(ping -c 1 archlinux.org) ]]; do
+
+		clear
+		iwctl
+
+	fi
+
+fi
+
+clear
+
+timedatectl set-ntp true
+
+# Get the disk to install Arch on
+read -p "Enter disk: " DISK
+
+# Size in Gigabytes
+DISK_SIZE=$(lsblk $DISK -o SIZE | tr -d "\n" | sed -e 's/SIZE//' -e 's/G//' -e 's|\..*||' -e 's| *||g')
+ROOT_SIZE=$(( $DISK_SIZE / 2  ))
+
+# UEFI/BIOS installations
+if [[ -d /sys/firmware/efi ]]; then
+
+	# UEFI
+
+	# Create partitions
+	parted -s $DISK mklabel gpt 
+	parted -s $DISK mkpart P1 fat32 1MiB 1GiB
+	parted -s $DISK mkpart P2 ext4 1GiB ${ROOT_SIZE}GiB 
+	parted -s $DISK mkpart P3 ext4 ${ROOT_SIZE}GiB 100%
+
+	# Set partition fileystems
+	mkfs.fat -F32 ${DISK}1
+	mkfs.ext4 ${DISK}2
+	mkfs.ext4 ${DISK}3
+
+	# Mount
+	mount ${DISK}2 /mnt
+	mkdir /mnt/efi
+	mkdir /mnt/home
+	mount ${DISK}1 /mnt/efi
+	mount ${DISK}3 /mnt/home
+
+	ROOT="/mnt"
+	ESP="/mnt/efi"
+	DHOME="/mnt/home"
+
+else
+
+	# BIOS
+
+fi
+
+clear
+
+# Install base
+pacstrap /mnt base base-devel micro nano htop iwd dhcpcd \
+	linux linux-firmware linux-headers \
+	linux-lts linux-lts-headers
+
+# Generate fstab
+genfstab -U /mnt >> /mnt/etc/fstab
+
+# Set local time & sync hardware clock
+CHROOT ln -sf /usr/share/zoneinfo/America/New_York /etc/lkocaltime
+CHROOT hwclock --systohc
+
+# Generate locale
+CHROOT sed 's|#en_US.UTF-8 UTF-8|en_US.UTF-8 UTF-8|' /etc/locale.gen
+CHROOT locale-gen
+
+# Networking
+clear
+read -p "Hostname: " HOSTNAME
+
+CHROOT echo "$HOSTNAME" > /etc/hostname
+CHROOT echo "127.0.0.1\tlocalhost" >> /etc/hosts
+CHROOT echo "::1\t\tlocalhost" >> /etc/hosts
+CHROOT echo "127.0.1.1\t$HOSTNAME.localdomain $HOSTNAME" >> /etc/hosts
+
+CHROOT systemctl enable dhcpcd
+
+# Generate initramfs
+CHROOT mkinitcpio -P
+
+# Set root pasword
+CHROOT passwd
+
+# UEFI/BIOS GRUB installation
+if [[ -d /sys/firmware/efi ]]; then
+
+	# Systemd-boot UEFI
+	CHROOT bootctl --esp-path=/efi --boot-path=/boot install
+	cp $scriptdir/systemd-loaders/* /mnt/efi/loader/entries
+
+else
+
+	# GRUB BIOS
+	CHROOT grub-install --target=i386-pc ${DISK}
+
+fi
+
+# Generate grub config file
+CHROOT grub-mkconfig -o /boot/grub/grub.cfg
+
+# Unmount partitions
+umount -R /mnt
+
+# Reboot
+reboot
