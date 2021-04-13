@@ -46,7 +46,7 @@ ROOT_SIZE=$(( $DISK_SIZE / 2  ))
 # Format disk
 read -p "Format disk (y/N) (N to cancel)? " doFormat
 
-if [[ doFormat =~ ^[yY]+[eE]?[sS]?$ ]]; then
+if [[ $doFormat =~ ^[yY]+[eE]?[sS]?$ ]]; then
 	for v_partition in $(parted -s /dev/sda print|awk '/^ / {print $1}')
 	do
 		parted -s $DISK rm ${v_partition}
