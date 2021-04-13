@@ -7,7 +7,15 @@ PRINT()
 
 CHROOT()
 {
-	arch-chroot /mnt eval "$@"
+	arch-chroot /mnt $@
+}
+
+PAUSE ()
+{
+    local p=""
+    read -p "Press <ENTER> to continue..." p
+
+    return 0
 }
 
 scriptdir="$(dirname $(realpath $0))"
@@ -87,7 +95,7 @@ else
 
 fi
 
-clear
+PAUSE
 
 # Install base
 pacstrap /mnt base base-devel micro nano htop iwd dhcpcd \
@@ -96,6 +104,8 @@ pacstrap /mnt base base-devel micro nano htop iwd dhcpcd \
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
+
+PAUSE
 
 # Set local time & sync hardware clock
 CHROOT ln -sf /usr/share/zoneinfo/America/New_York /etc/lkocaltime
@@ -106,7 +116,6 @@ CHROOT sed 's|#en_US.UTF-8 UTF-8|en_US.UTF-8 UTF-8|' /etc/locale.gen
 CHROOT locale-gen
 
 # Networking
-clear
 read -p "Hostname: " HOSTNAME
 
 CHROOT echo "$HOSTNAME" > /etc/hostname
@@ -115,6 +124,8 @@ CHROOT echo "::1\t\tlocalhost" >> /etc/hosts
 CHROOT echo "127.0.1.1\t$HOSTNAME.localdomain $HOSTNAME" >> /etc/hosts
 
 CHROOT systemctl enable dhcpcd
+
+PAUSE
 
 # Generate initramfs
 CHROOT mkinitcpio -P
@@ -138,6 +149,8 @@ else
 	CHROOT grub-mkconfig -o /boot/grub/grub.cfg
 
 fi
+
+PAUSE
 
 # Unmount partitions
 umount -R /mnt
