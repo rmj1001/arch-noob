@@ -20,7 +20,7 @@ if [[ ! $(ping -c 1 archlinux.org) ]]; then
 		clear
 		iwctl
 
-	fi
+	done
 
 fi
 
