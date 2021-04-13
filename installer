@@ -53,8 +53,7 @@ if [[ -d /sys/firmware/efi ]]; then
 
 	# Mount
 	mount ${DISK}2 /mnt
-	mkdir /mnt/efi
-	mkdir /mnt/home
+	mkdir /mnt/efi /mnt/home
 	mount ${DISK}1 /mnt/efi
 	mount ${DISK}3 /mnt/home
 
@@ -65,6 +64,26 @@ if [[ -d /sys/firmware/efi ]]; then
 else
 
 	# BIOS
+
+	# Create partitions
+	parted -s $DISK mklabel gpt
+	parted -s $DISK mkpart P1 1MiB 2MiB
+	parted -s $DISK mkpart P2 2MiB ${ROOT_SIZE}GiB
+	parted -s $DISK mkpart P3 ${ROOT_SIZE}GiB 100%
+
+	parted -s $DISK set P1 bios_grub on
+
+	# Set partition filesystems
+	mkfs.ext4 ${DISK}2
+	mkfs.ext4 ${DISK}3
+
+	# Mount
+	mount ${DISK}3 /mnt
+	mkdir /mnt/home
+	mount ${DISK}3 /mnt/home
+
+	ROOT="/mnt"
+	DHOME="/mnt/home"
 
 fi
 
@@ -115,10 +134,10 @@ else
 	# GRUB BIOS
 	CHROOT grub-install --target=i386-pc ${DISK}
 
-fi
+	# Generate grub config file
+	CHROOT grub-mkconfig -o /boot/grub/grub.cfg
 
-# Generate grub config file
-CHROOT grub-mkconfig -o /boot/grub/grub.cfg
+fi
 
 # Unmount partitions
 umount -R /mnt
